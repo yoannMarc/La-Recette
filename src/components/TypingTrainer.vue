@@ -1,7 +1,12 @@
 <script setup>
    
-   import {ref, reactive, computed, watch} from 'vue'
+    import {ref, reactive, computed, watch} from 'vue'
+
     
+    // WordGenerator = new WordGenerator()
+    // await WordGenerator.generateTree()
+
+
     const Words =  reactive({
         done:'',
         error:'',
@@ -12,32 +17,43 @@
     const errorsList = ref('')
     const wordsTodo = ref('')
     const input = ref('')
-    
+    const setDifficulty = ref('')
     const isLoading = ref(true)
-
-    const nbWords = computed(() => {
-        return  wordTab.length
-    })
-
+    
+    let allWords = []
     let wordTab = []
     let newWord = ''
 
  
     //Initialise une liste de nom
-    function loadData(letters = 'a,r,s,t,n,e,i,o') {
-        fetch('https://httpip.es/api/words?letters='+letters)
-        .then((res) => res.json())
-        .then((json) => {
-            wordTab = json.data.filter(s => s.length > 4)
-            console.log('base chargée !')
-            isLoading.value = false
-        })
-        .catch((err) => console.log('Erreur : '+ err))
+    function loadData(letters = 'arstneio' ) {
+        
+        isLoading.value = true
+       
+        const testRegex = new RegExp('\\b['+letters+']+\\b')
+
+        if (allWords.length == 0) {
+            fetch('https://random-word-api.herokuapp.com/all') 
+            .then((res) => res.json())
+            .then((json) => {
+                if (json) {
+                    allWords = json
+                    wordTab = json.filter( (a) => testRegex.test(a))
+                    console.log('LOADED !')
+                    isLoading.value = false 
+                }   
+            })
+            .catch((err) => console.log('Erreur : '+ err))
+        } else {
+           console.log('COMPUTED !')
+            wordTab = allWords.filter( (a) => testRegex.test(a))
+            isLoading.value = false 
+        }
 
     }
 
     loadData()
-
+ 
     function pickRandomWord() {
         if (wordTab.length > -1) {
             const rndInt = Math.floor(Math.random() * wordTab.length) + 1
@@ -50,7 +66,6 @@
         if (wordTab.length > -1) {
             let newWordsList = ''
             for (let i = 0; i < 5; i++) {
-                //if (newWordsList) newWordsList += ' '
                 newWordsList += ' ' + pickRandomWord() 
             }
             wordsTodo.value = newWordsList.trim()
@@ -82,6 +97,11 @@
         input.value = ''
     })
 
+    watch(setDifficulty,() => {
+        console.log('je change de difficulté')
+        loadData(setDifficulty.value)
+    })
+
     
 
 </script>
@@ -89,11 +109,15 @@
 
 <template>
     <div class="todo">
+        <h4 style="color: green;">DONE</h4>
+        <ul>
+            <li style="color: green;">Optimisation de l'API de recherche de Mot + filtrage par regex... </li>
+            <li style="color: green;">Proposer une liste de choix de difficulité (=> 5 niveaux) avec rechargement de la base</li>
+            <li style="color: green;">Stocker la base en cache pour ne pas la recharger en cas de modification</li>
+        </ul>
         <h4>TODO :</h4>
         <ul>
             <li>Améliorer le CSS</li>           
-            <li>Proposer une liste de choix de difficulité (=> 5 niveaux) avec rechargement de la base</li>
-            <li>Stocker la base en cache pour ne pas la recharger en cas de modification</li>
             <li>Faire un peu de reporting :</li>
             <ul>
                 <li>Lettres /min</li>
@@ -103,9 +127,11 @@
             </ul>
         </ul>
     </div>
+
+
     <div class="trainer">
         <p v-if="isLoading">Loading . . . </p>
-        <p v-else>{{ nbWords }} chargés !</p>
+        <p v-else>{{ wordTab.length }} chargés !</p>
         <p>
             <span class="done">{{ wordsDone  }}</span>
             <span v-if="errorsList" class="error">{{ errorsList }}</span>
@@ -114,13 +140,16 @@
         <div>
             <input type="button" value="test" @click="SetWordsTodo">
             <input type="text"  placeholder="saisie ici !" v-model="input">
+            <select name="difficulty" id="difficulty" v-model="setDifficulty">
+                <option value="arstneio">Niveau 1</option>
+                <option value="arstneiogm">Niveau 2</option>
+                <option value="arstneiogmbljp">Niveau 3</option>
+                <option value="arstneiogmbljpvkhd">Niveau 4</option>
+                <option value="a-z">Niveau 5</option>
+            </select>
          </div>
-        <!-- <select name="typer" id="typer" @select="SetWordsTodo()">
-            <option disabled value="">Fait-on choix</option>
-            <option>Selectionne moi !</option>
-            <option>Selectionne moi !</option>
-        </select> -->
     </div>
+
 </template>
 
 <style scoped>
