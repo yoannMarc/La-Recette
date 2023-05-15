@@ -1,10 +1,8 @@
 <script setup>
    
-    import {ref, reactive, computed, watch} from 'vue'
+import {ref, reactive, watch} from 'vue'
+import Timer from './Timer.vue';
 
-    
-    // WordGenerator = new WordGenerator()
-    // await WordGenerator.generateTree()
 
 
     const Words =  reactive({
@@ -12,19 +10,23 @@
         error:'',
         todo:''
     })
+
+    const Stats = reactive({
+        ok:0,
+        ko:0,
+        mots:0
+    })
     
-    const wordsDone = ref('')
-    const errorsList = ref('')
-    const wordsTodo = ref('')
     const input = ref('')
     const setDifficulty = ref('')
-    const isLoading = ref(true)
-    
+    const isLoading = ref(false)
+    const TimerComponent = ref()
+
     let allWords = []
     let wordTab = []
     let newWord = ''
 
- 
+
     //Initialise une liste de nom
     function loadData(letters = 'arstneio' ) {
         
@@ -41,6 +43,8 @@
                     wordTab = json.filter( (a) => testRegex.test(a))
                     console.log('LOADED !')
                     isLoading.value = false 
+
+                    SetWordstodo()
                 }   
             })
             .catch((err) => console.log('Erreur : '+ err))
@@ -48,11 +52,11 @@
            console.log('COMPUTED !')
             wordTab = allWords.filter( (a) => testRegex.test(a))
             isLoading.value = false 
+            
+            SetWordstodo()
         }
 
     }
-
-    loadData()
  
     function pickRandomWord() {
         if (wordTab.length > -1) {
@@ -61,37 +65,54 @@
         }
     }
 
-    function SetWordsTodo() {
+    function SetWordstodo() {
         console.log('je passe pas la fonction !')
         if (wordTab.length > -1) {
             let newWordsList = ''
             for (let i = 0; i < 5; i++) {
                 newWordsList += ' ' + pickRandomWord() 
             }
-            wordsTodo.value = newWordsList.trim()
+            Words.todo = newWordsList.trim()
         }
     }
 
     function removeFirstChar(value) {
-        console.log('je supprimer le premier caractère de : '+value)
+        // console.log('je supprimer le premier caractère de : '+value)
         return value.substring(1,value.length)
     }
 
+    function getDateIntervale(dates) {
+        console.log(dates)
+    }
 
     watch(input,() => {
+        
+        if(input.value == '') return
+        if(input.value == Words.todo.charAt(0)) {   
+
+            Stats.ok++
+            if (Words.todo.charAt(0) == ' ') Stats.mots++
+
+            //Purge les erreurs
+            Words.error = '' 
+            
+            //Initialisation des lettres validées + contrôle de longueur
+            Words.done += input.value
+            if (Words.done.length > 5) Words.done = removeFirstChar(Words.done)
            
-        if(input.value == wordsTodo.value.charAt(0)) {   
-            wordsDone.value += input.value
+            //Initialisation de la Todo
             if (!newWord) newWord += ' ' + pickRandomWord()
-            if (wordsDone.value.length > 5) wordsDone.value = removeFirstChar(wordsDone.value)
-            errorsList.value = '' 
-            wordsTodo.value = removeFirstChar(wordsTodo.value) + newWord.charAt(0)
+            Words.todo = removeFirstChar(Words.todo) + newWord.charAt(0)
             newWord = removeFirstChar(newWord)
 
         } else {
-            if (input.value === ' ') errorsList.value += '_'
-            else errorsList.value += input.value
-            if (errorsList.value.length > 10) errorsList.value = removeFirstChar(errorsList.value)
+            Stats.ko++ 
+            console.log('input KO')
+            if (input.value == ' ') Words.error += '_'
+            else Words.error += input.value
+            
+            if (Words.error.length > 10) Words.error = removeFirstChar(Words.error)
+        
         }
         
         input.value = ''
@@ -117,6 +138,7 @@
         </ul>
         <h4>TODO :</h4>
         <ul>
+            <li>Regarder pour la mise en cache des données (plôtut qu'en variable !!)</li>
             <li>Améliorer le CSS</li>           
             <li>Faire un peu de reporting :</li>
             <ul>
@@ -128,17 +150,19 @@
         </ul>
     </div>
 
-
+    <div class="timer">
+        <Timer ref="TimerComponent" duration=60 @getDateInterval="getDateIntervale"/>
+    </div>
     <div class="trainer">
         <p v-if="isLoading">Loading . . . </p>
-        <p v-else>{{ wordTab.length }} chargés !</p>
+        <p v-else-if="wordTab.length > 0">{{ wordTab.length }} chargés !</p>
         <p>
-            <span class="done">{{ wordsDone  }}</span>
-            <span v-if="errorsList" class="error">{{ errorsList }}</span>
-            <span class="">{{ wordsTodo }}</span></p>
+            <span class="done">{{ Words.done  }}</span>
+            <span v-if="Words.error" class="error">{{ Words.error }}</span>
+            <span class="">{{ Words.todo }}</span></p>
         <p>{{ input }}</p>
         <div>
-            <input type="button" value="test" @click="SetWordsTodo">
+            <input type="button" @click="TimerComponent.startTimer" value="start">
             <input type="text"  placeholder="saisie ici !" v-model="input">
             <select name="difficulty" id="difficulty" v-model="setDifficulty">
                 <option value="arstneio">Niveau 1</option>
